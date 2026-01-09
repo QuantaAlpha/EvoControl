@@ -1,0 +1,357 @@
+
+# SE Configuration for Multi-round Iteration Strategy
+# Based on deepseek-v3.1-scheme4-local-refine.yaml
+
+model:
+  name: 
+  api_base: 
+  api_key: 
+  max_output_tokens: 30000
+  temperature: 0.7
+
+# 算子模型配置 (与主模型一致，但无cost limits)，用于 Operator 调用
+operator_models:
+  name: 
+  api_base: 
+  api_key: 
+  max_input_tokens: 30000
+  max_output_tokens: 30000
+  temperature: 0.7
+
+operator_selection_mode: weighted # weighted | random
+
+local_memory:
+  enabled: true
+  format_mode: short
+
+global_memory_bank:
+  enabled: true
+  embedding_model:
+    api_base: 
+    api_key: 
+    model: 
+    request_timeout: 60
+  memory:
+    backend: "chroma"
+
+# 实例配置
+instances:
+  instances_dir: instances/
+
+output_dir: "trajectories_perf/Plan-Weighted-Local-Global-30its_{timestamp}"
+suffix: "specific_instances"
+num_workers: 20
+
+prompt_config:
+  summarizer:
+    enable_summary: true
+    system_prompt: |
+      You are an expert code diagnosis agent within the PerfAgent framework. Your goal is to analyze a specific **Target Solution** for a competitive programming problem, decompose it into logical slots, and diagnose each slot's correctness and performance relative to a provided **Reference Solution (Best Solution)**.
+
+      ### Integral-Based Optimization Objective
+
+      The optimization target is **integral**:  
+      - Interpret this as the **integral of memory usage over runtime** for all test cases, i.e., the **area under the memory–time curve**.
+      - Your performance judgments should consider **both** runtime and memory, focusing on how each slot affects this **memory–time integral**, not just speed or memory in isolation.
+      - A slot that is slightly slower but uses much less memory can be better if it reduces the overall integral, and vice versa.
+
+      ### Input workspace
+      You will receive:
+      1.  **Problem Description**: The algorithmic problem statement.
+      2.  **Reference Solution (Best Solution)**: The code and metrics (pass rate, runtime, memory, integral) of the best solution found so far. This is your "ruler" or baseline.
+      3.  **Target Solution**: The code and metrics (pass rate, runtime, memory, integral) of the solution you need to diagnose.
+
+      The Solution has iteratively improved a program in {language} for a given problem, targeting better **{optimization_target}** (e.g., runtime, memory, integral(the integral of the memory to the runtime)).
+
+      ### Task Objectives
+
+      1.  **Summarize**: Provide a nickname and high-level summary of the Target Solution.
+      2.  **Factorize (Slot View)**: Decompose the Target Solution code into 3-5 logical slots (e.g., IO, Core Logic, Edge Cases, Perf Patches).
+      3.  **Diagnose**: Evaluate each slot. Compare the Target's implementation against the Reference. Determine if a slot is a bottleneck, a risk, or a good component to inherit.
+
+      ### Output JSON Schema
+      You must return a single valid JSON object strictly following this structure:
+
+      ```json
+      {
+        "solution_name": "String", // E.g., "TwoPointer_v1", "BinarySearch_Baseline"
+        "approach_summary": "String", // High-level natural language description of the strategy.
+        "slot_view": {
+          "slots": [
+            {
+              "slot_id": "String", // Enum: "io_parsing", "core_logic", "edge_case", "perf_patch", "misc"
+              "description": "String", // What this slot does.
+              "tags": ["String", ...], // HOW it is implemented (e.g., "two_pointer", "fast_io", "hash_map").
+              "code_span": [Integer, Integer] // [start_line, end_line] (approximate).
+            }
+          ],
+          "diagnoses": [
+            {
+              "slot_id": "String", // Must match a slot_id in "slots".
+              "status": "String", // Enum: "ok", "bottleneck", "bug_source", "risky", "redundant"
+              "correctness_level": "String", // Enum: "good", "minor_risk", "major_risk", "unknown"
+              "perf_level": "String", // Enum: "strong", "weak", "neutral", "unknown" (Relative to Reference!)
+              "priority": "String", // Enum: "inherit", "optimize", "inspect", "low"
+              "evidence": ["String", "String", ...] // 1-3 short sentences explaining the judgment.
+            }
+          ]
+        }
+      }
+      ```
+
+      ### Critical Rules for Diagnosis
+
+      #### 1. Slot Factorization (slots)
+      
+      - Granularity: Keep it between 3 to 5 slots.
+      - slot_id Standardization:
+          - io_parsing: Input reading and initial formatting.
+          - core_logic: The main algorithm (e.g., the loop, the DP transition).
+          - edge_case: Handling $N=0$, $N=1$, or boundary conditions.
+          - perf_patch: Specific optimizations (e.g., buffer handling, pruning).
+          - misc: Helper functions or headers.
+      - tags: Describe the implementation method, not just the functionality.
+          - Bad: "reads input", "solves problem"
+          - Good: "fast_io_sys_read", "segment_tree", "bitmask_dp", "early_return_null"
+
+      #### 2. Comparison & Diagnosis (diagnoses)
+
+      - perf_level: Compare against the Reference Solution.
+          - If Target is O(N^2) and Reference is O(N) -> weak.
+          - If Target is similar to Reference -> strong or neutral.
+      - status:
+          - bottleneck: If this slot is the main reason the code is slower than the Reference.
+          - ok: If this slot is correct and performant.
+          - bug_source: If the code failed tests, where is the bug likely located?
+      - priority:
+          - inherit: This part is good. Keep it in future mutations.
+          - optimize: This part is the bottleneck. Focus changes here.
+          - inspect: Code looks risky or correctness is doubtful.
+
+      #### 3. Content Self-Containment
+      - The generated content (especially "evidence" and "approach_summary") must be **self-contained** relative to the target.
+      - **Do NOT** use generic terms like "Reference Solution" or "Best Solution" in your descriptions. 
+      - Instead, be specific: refer to specific method names, algorithmic strategies (e.g., "Binary Search Approach"), or the solution's specific characteristics.
+      - Bad: "Slower than the Reference Solution."
+      - Good: "Slower than the O(N) sliding window approach due to the O(N^2) nested loop."
+
+      ### Response Format
+      Return the JSON object. Do not add markdown formatting or explanatory text outside the JSON. You can wrap the JSON object in the ```json ``` fence
+    user_prompt_template: |
+      Please perform a **Slot-Based Diagnosis** on the following Target Solution.
+
+      ### 1. Problem Description
+      {problem_description}
+
+      ### 2. Reference Solution (Best Known Solution)
+      *Use this as the baseline for performance and correctness comparison.*
+      
+      {best_solution}
+
+      ### 3. Target Solution (To Diagnose)
+      {target_solution}
+      
+      ### Task
+      Generate the JSON diagnosis report for the Target Solution.
+      Remember to:
+      1. Decompose the Target code into io_parsing, core_logic, edge_case, etc.
+      2. Assign implementation tags to each slot.
+      3. specific perf_level relative to the Reference Solution.
+      4. Set priority to guide future optimization (e.g., "optimize" the bottleneck, "inherit" the good parts).
+
+
+max_iterations: 1 # This config defines a single, multi-step iteration.
+
+# 基础配置引用 (从base_configs目录)
+base_config: "configs/perf_configs/config_integral.yaml"
+
+# 策略编排
+strategy:
+  iterations:
+    # ==========================================================================
+    # Initialization: Planner generates K=5 initial solutions
+    # ==========================================================================
+    - operator: "plan"
+      num: 5
+      trajectory_labels: ["iter1_sol1", "iter1_sol2", "iter1_sol3", "iter1_sol4", "iter1_sol5"]
+
+    # ==========================================================================
+    # Evolution: 10 hard-coded steps of exploration and exploitation
+    # Operators will use weighted selection from the entire pool of trajectories.
+    # ==========================================================================
+
+    # Step 1: Reflection and Refine
+    - operator: "reflection_refine"
+      trajectory_label: "iter1_sol6"
+
+    # Step 2: Crossover
+    - operator: "crossover"
+      trajectory_label: "iter1_sol7"
+
+    # Step 3: Reflection and Refine
+    - operator: "reflection_refine"
+      trajectory_label: "iter1_sol8"
+
+    # Step 4: Crossover
+    - operator: "crossover"
+      trajectory_label: "iter1_sol9"
+
+    # Step 5: Reflection and Refine
+    - operator: "reflection_refine"
+      trajectory_label: "iter1_sol10"
+
+    # Step 6: Crossover
+    - operator: "crossover"
+      trajectory_label: "iter1_sol11"
+
+    # Step 7: Reflection and Refine
+    - operator: "reflection_refine"
+      trajectory_label: "iter1_sol12"
+
+    # Step 8: Crossover
+    - operator: "crossover"
+      trajectory_label: "iter1_sol13"
+
+    # Step 9: Reflection and Refine
+    - operator: "reflection_refine"
+      trajectory_label: "iter1_sol14"
+
+    # Step 10: Crossover
+    - operator: "crossover"
+      trajectory_label: "iter1_sol15"
+
+    # Iteration 2 
+    # ==========================================================================
+    # Evolution: 10 hard-coded steps of exploration and exploitation
+    # ==========================================================================
+
+    # Step 1: Reflection and Refine
+    - operator: "reflection_refine"
+      trajectory_label: "iter2_sol1"
+
+    # Step 2: Crossover
+    - operator: "crossover"
+      trajectory_label: "iter2_sol2"
+
+    # Step 3: Reflection and Refine
+    - operator: "reflection_refine"
+      trajectory_label: "iter2_sol3"
+
+    # Step 4: Crossover
+    - operator: "crossover"
+      trajectory_label: "iter2_sol4"
+
+    # Step 5: Reflection and Refine
+    - operator: "reflection_refine"
+      trajectory_label: "iter2_sol5"
+
+    # Step 6: Crossover
+    - operator: "crossover"
+      trajectory_label: "iter2_sol6"
+
+    # Step 7: Reflection and Refine
+    - operator: "reflection_refine"
+      trajectory_label: "iter2_sol7"
+
+    # Step 8: Crossover
+    - operator: "crossover"
+      trajectory_label: "iter2_sol8"
+
+    # Step 9: Reflection and Refine
+    - operator: "reflection_refine"
+      trajectory_label: "iter2_sol9"
+
+    # Step 10: Crossover
+    - operator: "crossover"
+      trajectory_label: "iter2_sol10"
+
+    # Iteration 3
+    # ==========================================================================
+    # Evolution: 10 hard-coded steps of exploration and exploitation
+    # ==========================================================================
+
+    # Step 1: Reflection and Refine
+    - operator: "reflection_refine"
+      trajectory_label: "iter3_sol1"
+
+    # Step 2: Crossover
+    - operator: "crossover"
+      trajectory_label: "iter3_sol2"
+
+    # Step 3: Reflection and Refine
+    - operator: "reflection_refine"
+      trajectory_label: "iter3_sol3"
+
+    # Step 4: Crossover
+    - operator: "crossover"
+      trajectory_label: "iter3_sol4"
+
+    # Step 5: Reflection and Refine
+    - operator: "reflection_refine"
+      trajectory_label: "iter3_sol5"
+
+    # # Step 6: Crossover
+    # - operator: "crossover"
+    #   trajectory_label: "iter3_sol6"
+
+    # # Step 7: Reflection and Refine
+    # - operator: "reflection_refine"
+    #   trajectory_label: "iter3_sol7"
+
+    # # Step 8: Crossover
+    # - operator: "crossover"
+    #   trajectory_label: "iter3_sol8"
+
+    # # Step 9: Reflection and Refine
+    # - operator: "reflection_refine"
+    #   trajectory_label: "iter3_sol9"
+
+    # # Step 10: Crossover
+    # - operator: "crossover"
+    #   trajectory_label: "iter3_sol10"
+
+
+    # # Iteration 4
+    # # ==========================================================================
+    # # Evolution: 10 hard-coded steps of exploration and exploitation
+    # # ==========================================================================
+
+    # # Step 1: Reflection and Refine
+    # - operator: "reflection_refine"
+    #   trajectory_label: "iter4_sol1"
+
+    # # Step 2: Crossover
+    # - operator: "crossover"
+    #   trajectory_label: "iter4_sol2"
+
+    # # Step 3: Reflection and Refine
+    # - operator: "reflection_refine"
+    #   trajectory_label: "iter4_sol3"
+
+    # # Step 4: Crossover
+    # - operator: "crossover"
+    #   trajectory_label: "iter4_sol4"
+
+    # # Step 5: Reflection and Refine
+    # - operator: "reflection_refine"
+    #   trajectory_label: "iter4_sol5"
+
+    # # Step 6: Crossover
+    # - operator: "crossover"
+    #   trajectory_label: "iter4_sol6"
+
+    # # Step 7: Reflection and Refine
+    # - operator: "reflection_refine"
+    #   trajectory_label: "iter4_sol7"
+
+    # # Step 8: Crossover
+    # - operator: "crossover"
+    #   trajectory_label: "iter4_sol8"
+
+    # # Step 9: Reflection and Refine
+    # - operator: "reflection_refine"
+    #   trajectory_label: "iter4_sol9"
+
+    # # Step 10: Crossover
+    # - operator: "crossover"
+    #   trajectory_label: "iter4_sol10"

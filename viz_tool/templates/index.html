@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trajectory Pool Visualization</title>
+    <script src="/static/cytoscape.min.js"></script>
+    <script src="/static/chart.min.js"></script>
+    <script src="/static/chartjs-plugin-datalabels.min.js"></script>
+    <script src="/static/dagre.min.js"></script>
+    <script src="/static/cytoscape-dagre.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --light-gray: #ecf0f1;
+            --border-color: #bdc3c7;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            color: var(--text-color);
+            background-color: #fdfdfd;
+        }
+
+        #header {
+            padding: 15px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        #header label {
+            margin-right: 15px;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        select {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: none;
+            font-size: 14px;
+            min-width: 300px;
+            background-color: white;
+            color: var(--text-color);
+            margin-right: 20px;
+        }
+
+        #container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        #left-panel {
+            width: 65%;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        #cy {
+            flex: 1;
+            background-color: #fafafa;
+            background-image: radial-gradient(#e0e0e0 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        #chart-container {
+            height: 320px;
+            padding: 20px;
+            background-color: white;
+            border-top: 1px solid var(--border-color);
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+
+        #right-panel {
+            width: 35%;
+            padding: 0;
+            overflow-y: auto;
+            background-color: #fff;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.05);
+        }
+
+        #node-details {
+            padding: 25px;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 10px;
+            font-size: 1.5em;
+        }
+
+        h3 {
+            color: var(--primary-color);
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            color: #444;
+            overflow-x: auto;
+        }
+
+        .info-section {
+            margin-bottom: 20px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .info-row {
+            display: flex;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #555;
+            width: 120px;
+            flex-shrink: 0;
+        }
+
+        .info-value {
+            color: #333;
+            flex: 1;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            background-color: var(--secondary-color);
+        }
+        .splitter-horizontal {
+            width: 5px;
+            cursor: col-resize;
+            background-color: var(--border-color);
+            position: relative;
+            z-index: 100;
+        }
+
+        .splitter-vertical {
+            height: 5px;
+            cursor: row-resize;
+            background-color: var(--border-color);
+            position: relative;
+            z-index: 100;
+        }
+
+        .splitter-horizontal:hover, .splitter-vertical:hover {
+            background-color: var(--secondary-color);
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            background-color: #f1f1f1;
+        }
+
+        .tab-button {
+            background-color: inherit;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 10px 16px;
+            transition: 0.3s;
+            font-size: 14px;
+            font-weight: 600;
+            color: #555;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-button:hover {
+            background-color: #ddd;
+        }
+
+        .tab-button.active {
+            border-bottom: 3px solid var(--secondary-color);
+            color: var(--secondary-color);
+            background-color: white;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+            animation: fadeEffect 0.5s;
+            overflow-y: auto;
+            height: calc(100% - 45px); /* Subtract tab header height */
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeEffect {
+            from {opacity: 0;}
+            to {opacity: 1;}
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <label for="dir-select">Select Experiment:</label>
+        <select id="dir-select">
+            <option value="">Loading directories...</option>
+        </select>
+
+        <label for="instance-select">Select Instance:</label>
+        <select id="instance-select">
+            <option value="">Loading instances...</option>
+        </select>
+
+        <label for="compare-select" style="margin-left: 20px;">Compare with:</label>
+        <select id="compare-select">
+            <option value="">-- None --</option>
+        </select>
+    </div>
+    <div id="container">
+        <div id="left-panel">
+            <div id="cy"></div>
+            <div class="splitter-vertical" id="splitter-vert"></div>
+            <div class="control-group" style="display: flex; align-items: center; gap: 10px; padding: 5px; background: #f8f9fa; border-bottom: 1px solid #ddd;">
+                <label style="font-size: 12px; font-weight: bold;">Y-Axis Range:</label>
+                <input type="number" id="y-min" placeholder="Min" style="width: 60px; padding: 2px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
+                <span>-</span>
+                <input type="number" id="y-max" placeholder="Max" style="width: 60px; padding: 2px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
+                <button id="update-axis-btn" style="padding: 2px 8px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Update</button>
+                <button id="reset-axis-btn" style="padding: 2px 8px; background-color: #95a5a6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Auto</button>
+                <span style="margin-left: 15px; border-left: 1px solid #ccc; padding-left: 15px;"></span>
+                <label style="font-size: 12px; font-weight: bold;">Show first K generations:</label>
+                <input type="number" id="k-iterations" placeholder="All" min="1" style="width: 50px; padding: 2px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
+                <button id="apply-k-btn" style="padding: 2px 8px; background-color: #e67e22; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Apply</button>
+                <span style="margin-left: 15px; border-left: 1px solid #ccc; padding-left: 15px;"></span>
+                <button id="export-png-btn" style="padding: 2px 8px; background-color: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">📷 Export PNG</button>
+                <button id="export-svg-btn" style="padding: 2px 8px; background-color: #8e44ad; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">📄 Export HD</button>
+                <span style="margin-left: 15px; font-size: 11px; color: #666;">💡 Click legend to edit | Shift+Click point to edit label</span>
+            </div>
+            <div id="chart-container">
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+        <div class="splitter-horizontal" id="splitter-horiz"></div>
+        <div id="right-panel">
+            <!-- Tab Header -->
+            <div class="tabs">
+                <button class="tab-button active" onclick="openTab(event, 'tab-problem')">Problem</button>
+                <button class="tab-button" onclick="openTab(event, 'tab-details')">Details</button>
+                <button class="tab-button" onclick="openTab(event, 'tab-llm')">LLM IO</button>
+                <button class="tab-button" onclick="openTab(event, 'tab-code')">Code</button>
+                <button class="tab-button" onclick="openTab(event, 'tab-full')">Full Data</button>
+            </div>
+
+            <!-- Tab Contents -->
+            <div id="tab-problem" class="tab-content active">
+                <div id="problem-content">
+                    <p class="placeholder">Select an instance to view problem description.</p>
+                </div>
+            </div>
+
+            <div id="tab-details" class="tab-content">
+                <div id="details-content">
+                    <h2>Node Details</h2>
+                    <p>Click on a node to view details here.</p>
+                </div>
+            </div>
+
+            <div id="tab-llm" class="tab-content">
+                <div id="llm-content">
+                    <p class="placeholder">Select a node with iteration info to view LLM interactions.</p>
+                </div>
+            </div>
+
+            <div id="tab-code" class="tab-content">
+                <div id="code-content">
+                    <p class="placeholder">Select a node to view code.</p>
+                </div>
+            </div>
+
+            <div id="tab-full" class="tab-content">
+                <div id="full-content">
+                    <p class="placeholder">Select a node to view full data JSON.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].className = tabcontent[i].className.replace(" active", "");
+            }
+            tablinks = document.getElementsByClassName("tab-button");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).className += " active";
+            evt.currentTarget.className += " active";
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Splitter Logic
+            const container = document.getElementById('container');
+            const leftPanel = document.getElementById('left-panel');
+            const rightPanel = document.getElementById('right-panel');
+            const chartContainer = document.getElementById('chart-container');
+            const cyContainer = document.getElementById('cy');
+            const splitterHoriz = document.getElementById('splitter-horiz');
+            const splitterVert = document.getElementById('splitter-vert');
+
+            // Horizontal Splitter (Left vs Right)
+            let isResizingHoriz = false;
+            splitterHoriz.addEventListener('mousedown', function(e) {
+                isResizingHoriz = true;
+                document.body.style.cursor = 'col-resize';
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizingHoriz) return;
+                
+                const containerRect = container.getBoundingClientRect();
+                const newLeftWidth = e.clientX - containerRect.left;
+                
+                // Min/Max constraints
+                if (newLeftWidth > 200 && newLeftWidth < containerRect.width - 200) {
+                    const percentage = (newLeftWidth / containerRect.width) * 100;
+                    leftPanel.style.width = `${percentage}%`;
+                    rightPanel.style.width = `${100 - percentage}%`;
+                    if (cy) cy.resize(); // Resize Cytoscape
+                    if (chart) chart.resize(); // Resize Chart
+                }
+            });
+
+            // Vertical Splitter (Graph vs Chart)
+            let isResizingVert = false;
+            splitterVert.addEventListener('mousedown', function(e) {
+                isResizingVert = true;
+                document.body.style.cursor = 'row-resize';
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizingVert) return;
+
+                const leftPanelRect = leftPanel.getBoundingClientRect();
+                // Calculate height relative to the left panel
+                const newCyHeight = e.clientY - leftPanelRect.top - 50; // 50 offset for header roughly? No, clientY is global.
+                // Actually leftPanelRect.top is header bottom.
+                
+                const relativeY = e.clientY - leftPanelRect.top;
+                
+                // Constraints
+                if (relativeY > 100 && relativeY < leftPanelRect.height - 100) {
+                     // We set flex basis or height. 
+                     // Since left-panel is flex column, we can set height of cy and let chart take rest, or vice versa.
+                     // Currently #cy has flex: 1. #chart-container has fixed height.
+                     // Let's change this structure slightly in CSS/JS logic.
+                     
+                     // Better approach: Set height of chart-container, and let cy take the rest (flex: 1).
+                     // chart-container height = total height - relativeY
+                     const newChartHeight = leftPanelRect.height - relativeY;
+                     chartContainer.style.height = `${newChartHeight}px`;
+                     chartContainer.style.flex = 'none';
+                     cyContainer.style.flex = '1';
+                     
+                     if (cy) cy.resize();
+                     if (chart) chart.resize();
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                isResizingHoriz = false;
+                isResizingVert = false;
+                document.body.style.cursor = 'default';
+            });
+
+            let cy = null;
+            let chart = null;
+            let rawData = null;
+            let compareData = null;
+            let currentInstanceKey = null;
+            let maxK = null; // Max number of generations to show (null = all)
+
+            // Initialize Chart.js
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+
+            // Function to fetch and populate directories
+            function fetchDirectories() {
+                fetch('/api/dirs')
+                    .then(response => response.json())
+                    .then(dirs => {
+                        const dirSelect = document.getElementById('dir-select');
+                        const compareSelect = document.getElementById('compare-select');
+                        
+                        dirSelect.innerHTML = '';
+                        // Initialize compare select with "None"
+                        compareSelect.innerHTML = '<option value="">-- None --</option>';
+                        
+                        if (dirs.length === 0) {
+                            const option = document.createElement('option');
+                            option.text = "No directories found";
+                            dirSelect.add(option);
+                            return;
+                        }
+
+                        // Populate both dropdowns
+                        dirs.forEach(dir => {
+                            // Main experiment select
+                            const option = document.createElement('option');
+                            option.value = dir;
+                            option.text = dir;
+                            dirSelect.add(option);
+
+                            // Compare experiment select
+                            const compareOption = document.createElement('option');
+                            compareOption.value = dir;
+                            compareOption.text = dir;
+                            compareSelect.add(compareOption);
+                        });
+
+                        if (dirs.length > 0) {
+                            fetchInstances(dirs[0]);
+                        }
+
+                        // Add change event listener
+                        dirSelect.addEventListener('change', function() {
+                            fetchInstances(this.value);
+                            // Also trigger data reload if we have an instance selected (which we might lose if we change dir, but logic handles it)
+                        });
+                        
+                        // Compare select listener
+                        compareSelect.addEventListener('change', function() {
+                            const mainDir = document.getElementById('dir-select').value;
+                            const compareDir = this.value;
+                            const instance = document.getElementById('instance-select').value;
+                            
+                            if (compareDir && instance && mainDir) {
+                                loadCompareData(compareDir, instance);
+                            } else {
+                                // If cleared, remove comparison line
+                                compareData = null;
+                                if (rawData && currentInstanceKey) {
+                                    renderChart(rawData[currentInstanceKey]);
+                                }
+                            }
+                        });
+                    })
+                    .catch(err => {
+                        console.error("Error loading directories:", err);
+                        document.getElementById('dir-select').innerHTML = '<option>Error loading</option>';
+                    });
+            }
+
+            // Function to fetch instances for a directory
+            function fetchInstances(subdir) {
+                const instanceSelect = document.getElementById('instance-select');
+                instanceSelect.innerHTML = '<option>Loading instances...</option>';
+                
+                // Clear previous data
+                if (cy) { cy.destroy(); cy = null; }
+                if (chart) { chart.destroy(); chart = null; }
+                document.getElementById('cy').innerHTML = '';
+                document.getElementById('problem-content').innerHTML = '<p class="placeholder">Select an instance to view problem description.</p>';
+                
+                fetch('/api/instances?subdir=' + encodeURIComponent(subdir))
+                    .then(response => response.json())
+                    .then(instances => {
+                        instanceSelect.innerHTML = '';
+                        if (instances.length === 0) {
+                            instanceSelect.innerHTML = '<option value="">No instances found</option>';
+                            return;
+                        }
+                        
+                        // Add placeholder
+                        const placeholder = document.createElement('option');
+                        placeholder.value = "";
+                        placeholder.text = "-- Select an Instance --";
+                        placeholder.disabled = true;
+                        placeholder.selected = true;
+                        instanceSelect.add(placeholder);
+
+                        instances.forEach(inst => {
+                            const option = document.createElement('option');
+                            option.value = inst;
+                            option.text = inst;
+                            instanceSelect.add(option);
+                        });
+                        
+                        // Remove old event listener to avoid duplicates? 
+                        // Actually we are adding a new listener every time fetchInstances is called? 
+                        // No, we should add listener once globally or handle it carefully.
+                        // Better to add listener once in init, and just use current values.
+                    })
+                    .catch(err => {
+                        console.error("Error loading instances:", err);
+                        instanceSelect.innerHTML = '<option>Error loading instances</option>';
+                    });
+            }
+
+            // Global listener for instance change
+            document.getElementById('instance-select').addEventListener('change', function() {
+                const subdir = document.getElementById('dir-select').value;
+                const compareDir = document.getElementById('compare-select').value;
+                const instance = this.value;
+                
+                if (subdir && instance) {
+                    // Reset compare data when instance changes to avoid mismatch
+                    compareData = null; 
+                    loadInstanceData(subdir, instance);
+                    
+                    if (compareDir) {
+                        loadCompareData(compareDir, instance);
+                    }
+                }
+            });
+
+            // Function to load data for a specific instance
+            function loadInstanceData(subdir, instance) {
+                // Show loading state?
+                // document.getElementById('cy').innerHTML = 'Loading graph...';
+                
+                fetch('/api/data?subdir=' + encodeURIComponent(subdir) + '&instance=' + encodeURIComponent(instance))
+                    .then(response => {
+                        console.log('Fetch response status:', response.status);
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Data received:', data);
+                        processData(data);
+                    })
+                    .catch(error => {
+                        console.error('Error loading data:', error);
+                        // Show error in UI
+                    });
+            }
+            
+            // Function to load comparison data
+            function loadCompareData(subdir, instance) {
+                console.log(`Loading comparison data for ${instance} from ${subdir}`);
+                fetch('/api/data?subdir=' + encodeURIComponent(subdir) + '&instance=' + encodeURIComponent(instance))
+                    .then(response => response.json())
+                    .then(data => {
+                        // Check if we got valid data
+                        const keys = Object.keys(data);
+                        if (keys.length > 0 && keys.includes(instance)) {
+                            compareData = data[instance];
+                            console.log('Comparison data loaded:', compareData);
+                            // Re-render chart with both datasets
+                            if (rawData && currentInstanceKey && rawData[currentInstanceKey]) {
+                                renderChart(rawData[currentInstanceKey]);
+                            }
+                        } else {
+                            console.warn('No data found for comparison instance');
+                            alert('Instance not found in comparison experiment');
+                            compareData = null;
+                            if (rawData && currentInstanceKey) {
+                                renderChart(rawData[currentInstanceKey]);
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading comparison data:', error);
+                    });
+            }
+
+            // Initial fetch
+            fetchDirectories();
+
+            function processData(data) {
+                    // Register dagre extension
+                    if (typeof cytoscapeDagre !== 'undefined') {
+                        cytoscape.use(cytoscapeDagre);
+                    } else if (typeof dagre !== 'undefined' && cytoscape) {
+                        // Try auto-registration or check if already registered
+                        // Sometimes it's auto-registered if included after cytoscape
+                    }
+
+                    rawData = data;
+                    // populateInstanceSelect(data); // No longer needed as we select instance first
+                    
+                    // We need to render the instance directly since we loaded only ONE instance data
+                    // The data structure is { "instance_name": { ... } }
+                    const keys = Object.keys(data);
+                    if (keys.length > 0) {
+                        const instanceKey = keys[0];
+                        renderInstance(instanceKey);
+                    }
+            }
+
+            // function populateInstanceSelect(data) { ... } // Can be removed or ignored
+
+
+            /*
+            function populateInstanceSelect(data) {
+                console.log('Populating select with keys:', Object.keys(data));
+                const select = document.getElementById('instance-select');
+                select.innerHTML = '';
+                
+                // Sort keys for consistent order
+                const keys = Object.keys(data).sort();
+                
+                if (keys.length > 0) {
+                    keys.forEach(key => {
+                        const option = document.createElement('option');
+                        option.value = key;
+                        option.textContent = key;
+                        select.appendChild(option);
+                    });
+                    
+                    // Select first instance by default
+                    select.value = keys[0];
+                    console.log('Auto-selecting first instance:', keys[0]);
+                    renderInstance(keys[0]);
+                } else {
+                    console.warn('No keys found in data');
+                    select.innerHTML = '<option>No data available</option>';
+                }
+
+                select.addEventListener('change', function() {
+                    console.log('Instance changed to:', this.value);
+                    renderInstance(this.value);
+                });
+            }
+            */
+
+            function renderInstance(instanceKey) {
+                console.log('Rendering instance:', instanceKey);
+                const instanceData = rawData[instanceKey];
+                if (!instanceData) {
+                    console.error('No data found for instance:', instanceKey);
+                    return;
+                }
+                currentInstanceKey = instanceKey;
+
+                try {
+                    renderGraph(instanceData);
+                    renderChart(instanceData);
+                } catch (e) {
+                    console.error('Error rendering instance:', e);
+                }
+                
+                // Clear details panel but keep header
+                // document.getElementById('node-details').innerHTML = '<h2>Node Details</h2><p>Click on a node to view details here.</p>';
+                
+                // Show problem description
+                const problemDesc = instanceData['problem'] || 'No problem description available.';
+                displayProblemDescription(problemDesc);
+            }
+
+            function displayProblemDescription(desc) {
+                const container = document.getElementById('problem-content');
+                container.innerHTML = `
+                    <div class="info-section" style="background-color: #f8f9fa; border-left: 4px solid #2c3e50; padding: 15px; margin-bottom: 25px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <h3 style="margin-top: 0; border-bottom: 1px solid #e9ecef; padding-bottom: 10px; margin-bottom: 15px; color: #2c3e50;">Problem Description</h3>
+                        <div style="font-family: 'Segoe UI', sans-serif; line-height: 1.6; color: #333; white-space: pre-wrap; font-size: 14px;">${desc}</div>
+                    </div>
+                `;
+            }
+
+            function renderGraph(instanceData) {
+                console.log('Rendering graph for data:', instanceData);
+                const elements = [];
+                const nodes = [];
+                const edges = [];
+                const solutions = [];
+                
+                // Step 1: Identify all valid solutions and create nodes first
+                // Also collect iterations to create parent compound nodes
+                const iterations = new Set();
+
+                Object.keys(instanceData).forEach(key => {
+                    if (key === 'problem' || key === 'llm_io') return;
+                    const solution = instanceData[key];
+                    if (typeof solution !== 'object') return;
+
+                    solutions.push({ key, solution });
+                    
+                    // Create node logic
+                    let nodeColor = '#3498db'; // Default blue
+                    let labelText = solution.label || key;
+                    
+                    // Determine iteration for grouping based on label ONLY
+                    // Format: iterX_...
+                    let iter = undefined;
+                    if (labelText && labelText.startsWith('iter')) {
+                        const match = labelText.match(/^iter(\d+)_/);
+                        if (match) {
+                            iter = parseInt(match[1]);
+                        }
+                    }
+                    
+                    const parentId = iter !== undefined ? `iteration_${iter}` : 'iteration_unknown';
+                    iterations.add(parentId);
+
+                        // Determine color based on status or metrics if available
+                        // User Requirement 3: sol 的颜色需要代表是否通过， `/data/CodeEfficiency/SE-Agent/trajectories_perf/deepseek/deepseek-v3.1-test-example_20251203_120416/traj.pool#L172-173` 可以用这个来判断
+                        
+                        if (solution.perf_metrics) {
+                            if (solution.perf_metrics.passed === true) {
+                                nodeColor = '#2ecc71'; // Green for success
+                            } else if (solution.perf_metrics.passed === false) {
+                                nodeColor = '#e74c3c'; // Red for failure
+                            } else {
+                                // Fallback or unknown status
+                                nodeColor = '#f39c12'; // Orange
+                            }
+                        } else if (solution.summary && solution.summary.metrics) {
+                            // Old fallback
+                            const metrics = solution.summary.metrics;
+                            if (metrics.includes("Pass rate: 100.00%")) {
+                                nodeColor = '#2ecc71'; // Green for success
+                            } else if (metrics.includes("Pass rate: 0.00%") || metrics.includes("Failed") || metrics.includes("Error")) {
+                                nodeColor = '#e74c3c'; // Red for failure
+                            } else if (metrics.includes("Pass rate:")) {
+                                nodeColor = '#f39c12'; // Orange for partial/mixed
+                            }
+                        }
+
+                    nodes.push({
+                        data: { 
+                            id: key, 
+                            label: labelText,
+                            parent: parentId, // Assign to compound node
+                            info: solution
+                        },
+                        style: {
+                            'background-color': nodeColor
+                        }
+                    });
+                });
+
+                // Add compound nodes for iterations
+                Array.from(iterations).sort().forEach(iterId => {
+                    nodes.push({
+                        data: { id: iterId, label: iterId.replace('iteration_', 'Iteration ').replace('unknown', 'Unknown') },
+                        classes: 'compound-node'
+                    });
+                });
+
+                // Step 2: Create edges after all known nodes are created
+                solutions.forEach(({ key, solution }) => {
+                    
+                    // Create edges based on source_entry_labels
+                    // User requested strictly use root level source_entry_labels ONLY. 
+                    // Do NOT fallback to summary.source_entry_labels as it is unreliable.
+                    let sourceLabels = [];
+                    if (solution.source_entry_labels) {
+                        sourceLabels = solution.source_entry_labels;
+                    }
+
+                    sourceLabels.forEach(sourceLabel => {
+                        if (!sourceLabel || sourceLabel.trim() === '') return;
+
+                        // Check if source node exists in our created nodes
+                        const sourceExists = nodes.some(n => n.data.id === sourceLabel);
+                        
+                        if (!sourceExists) {
+                            // Only create ghost node if it really doesn't exist in the data we processed
+                            // (and hasn't been created as a ghost yet)
+                             const ghostExists = nodes.some(n => n.data.id === sourceLabel); // Check again just in case
+                             if (!ghostExists) {
+                                nodes.push({
+                                    data: { 
+                                        id: sourceLabel, 
+                                        label: sourceLabel + ' (External)',
+                                        info: { label: sourceLabel, summary: { solution_name: 'Unknown' } }
+                                    },
+                                    style: { 'background-color': '#ccc' }
+                                });
+                             }
+                        }
+
+                        edges.push({
+                            data: {
+                                    source: sourceLabel,
+                                    target: key,
+                                    label: solution.operator_name || ''
+                                }
+                        });
+                    });
+                });
+
+                if (cy) {
+                    cy.destroy();
+                }
+
+                cy = cytoscape({
+                    container: document.getElementById('cy'),
+                    elements: [...nodes, ...edges],
+                    style: [
+                        {
+                            selector: 'node',
+                            style: {
+                                'background-color': '#3498db',
+                                'label': 'data(label)',
+                                'color': '#fff',
+                                'text-valign': 'center',
+                                'text-halign': 'center',
+                                'font-size': '12px',
+                                'font-weight': 'bold',
+                                'width': '120px',
+                                'height': '50px',
+                                'shape': 'round-rectangle',
+                                'text-wrap': 'wrap',
+                                'text-max-width': '110px',
+                                'border-width': 2,
+                                'border-color': '#fff',
+                                'shadow-blur': 3,
+                                'shadow-color': '#ccc',
+                                'shadow-opacity': 0.5
+                            }
+                        },
+                        {
+                            selector: 'edge',
+                            style: {
+                                'width': 2,
+                                'line-color': '#bdc3c7',
+                                'target-arrow-color': '#bdc3c7',
+                                'target-arrow-shape': 'triangle',
+                                'curve-style': 'bezier',
+                                'arrow-scale': 1.2,
+                                'label': 'data(label)',
+                                'text-rotation': 'autorotate',
+                                'text-background-color': '#fff',
+                                'text-background-opacity': 0.8,
+                                'text-background-padding': '2px',
+                                'font-size': '10px',
+                                'color': '#555'
+                            }
+                        },
+                        {
+                            selector: ':selected',
+                            style: {
+                                'border-width': 3,
+                                'border-color': '#2c3e50',
+                                'shadow-blur': 10,
+                                'shadow-color': '#2c3e50',
+                                'shadow-opacity': 0.3
+                            }
+                        },
+                        {
+                            selector: '.compound-node',
+                            style: {
+                                'background-color': '#f9f9f9',
+                                'background-opacity': 0.5,
+                                'border-width': 1,
+                                'border-color': '#ccc',
+                                'border-style': 'dashed',
+                                'label': 'data(label)',
+                                'text-valign': 'top',
+                                'text-halign': 'center',
+                                'font-size': '16px',
+                                'font-weight': 'bold',
+                                'color': '#7f8c8d',
+                                'padding': '10px'
+                            }
+                        }
+                    ],
+                    layout: {
+                        name: 'dagre',
+                        rankDir: 'LR',
+                        nodeDimensionsIncludeLabels: true,
+                        spacingFactor: 1.2,
+                        rankSep: 100, // Separation between ranks (iterations likely fall into ranks)
+                        nodeSep: 50   // Separation between nodes in same rank
+                    }
+                });
+
+                cy.on('tap', 'node', function(evt){
+                    const node = evt.target;
+                    displayNodeDetails(node.data('info'));
+                });
+            }
+
+            function displayNodeDetails(info) {
+                // 1. DETAILS TAB
+                const detailsContainer = document.getElementById('details-content');
+                let html = `<h2>${info.label || 'Node Details'}</h2>`;
+                
+                // Helper to recursively display object
+                function formatValue(val) {
+                    if (typeof val === 'object' && val !== null) {
+                        return '<pre>' + JSON.stringify(val, null, 2) + '</pre>';
+                    }
+                    return val;
+                }
+
+                // Display specific fields first if they exist
+                if (info.iteration !== undefined) {
+                    html += `<div class="info-section"><span class="info-label">Iteration:</span> ${info.iteration}</div>`;
+                }
+                if (info.performance !== undefined) {
+                    html += `<div class="info-section"><span class="info-label">Performance:</span> ${info.performance}</div>`;
+                }
+                
+                if (info.summary) {
+                    html += `<div class="info-section"><h3>Summary</h3>`;
+                    
+                    if (info.summary.solution_name) {
+                        html += `<div><span class="info-label">Solution Name:</span> ${info.summary.solution_name}</div>`;
+                    }
+                    
+                    if (info.summary.approach_summary) {
+                        html += `<div><span class="info-label">Approach:</span> <p>${info.summary.approach_summary}</p></div>`;
+                    }
+
+                    html += `<div style="margin-top: 10px;">
+                        <h4 style="margin: 5px 0; color: #555;">Full Summary Details</h4>
+                        <pre style="max-height: 300px; overflow: auto; font-size: 12px;">${JSON.stringify(info.summary, null, 2)}</pre>
+                    </div>`;
+
+                    html += `</div>`;
+                }
+                
+                // Last Assistant Message in Details
+                if (info.trajectory_raw && info.trajectory_raw.Trajectory) {
+                    const traj = info.trajectory_raw.Trajectory;
+                    let lastAssistantMsg = null;
+                    for (let i = traj.length - 1; i >= 0; i--) {
+                        if (traj[i].role === 'assistant') {
+                            lastAssistantMsg = traj[i].content;
+                            break;
+                        }
+                    }
+
+                    if (lastAssistantMsg) {
+                        html += `<div class="info-section">
+                            <h3>Last Assistant Message</h3>
+                            <div style="white-space: pre-wrap; background: #f4f6f7; padding: 15px; border-radius: 5px; border-left: 4px solid #3498db; font-family: 'Segoe UI', monospace; font-size: 13px; max-height: 500px; overflow-y: auto;">${lastAssistantMsg}</div>
+                        </div>`;
+                    }
+                }
+                detailsContainer.innerHTML = html;
+
+
+                // 2. LLM IO TAB
+                const llmContainer = document.getElementById('llm-content');
+                let llmHtml = '';
+                let iter = info.iteration;
+                if (iter === undefined && info.label && /^iter(\d+)_/.test(info.label)) {
+                    try {
+                        iter = parseInt(info.label.match(/^iter(\d+)_/)[1]);
+                    } catch (e) {
+                        iter = undefined;
+                    }
+                }
+                
+                // Check if we have loaded llm_io data in info itself (from _load_single_instance)
+                // info is the object for the specific solution node. 
+                // But llm_io is usually at the top level of the instance data (rawData[currentInstanceKey].llm_io)
+                // However, info is just one entry in the rawData[currentInstanceKey] object (e.g. 'iter1_...').
+                
+                // Let's check rawData structure again.
+                // rawData = { "instance_name": { "iter0_sol1": {...}, "iter1_sol1": {...}, "llm_io": {...}, "problem": "..." } }
+                
+                if (currentInstanceKey && iter !== undefined) {
+                    try {
+                        // We access rawData[currentInstanceKey] because rawData is the whole response from /api/data
+                        // which is { "instance_name": { ... } }
+                        const instanceData = rawData[currentInstanceKey];
+                        
+                        // Debug
+                        console.log('Looking for LLM IO in:', instanceData);
+                        if (instanceData && instanceData.llm_io) {
+                             console.log('Found llm_io object:', instanceData.llm_io);
+                        } else {
+                             console.warn('llm_io not found in instanceData');
+                        }
+                        
+                        const llm = instanceData?.llm_io;
+                        const entries = llm && llm.by_iteration && llm.by_iteration[String(iter)] || [];
+                        
+                        if (entries.length > 0) {
+                            llmHtml += `<div class="info-section"><h3>LLM IO (Iteration ${iter})</h3>`;
+                            entries.forEach((e, idx) => {
+                                const meta = `${e.context || ''} · ${e.model || ''} · ${e.ts || ''}`;
+                                llmHtml += `<div style="margin:8px 0; padding:10px; border:1px solid #eee; border-radius:6px; background:#fafafa;">`;
+                                llmHtml += `<div class="badge" style="background:#3498db;">${idx + 1}</div> <span style="margin-left:8px; color:#666;">${meta}</span>`;
+                                if (Array.isArray(e.messages)) {
+                                    llmHtml += `<div style="margin-top:8px; max-height:400px; overflow:auto;">`;
+                                    e.messages.forEach(m => {
+                                        const role = m.role || 'unknown';
+                                        const content = (m.content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                        llmHtml += `<div style="margin-bottom:6px;"><span class="badge" style="background:#7f8c8d;">${role}</span>`;
+                                        llmHtml += `<div style="white-space: pre-wrap; font-family: 'Consolas','Monaco', monospace; font-size: 12px; background:#f4f6f7; padding:8px; border-radius:4px; border-left:3px solid #bdc3c7;">${content}</div></div>`;
+                                    });
+                                    
+                                    // Display Response if available
+                                    if (e.response) {
+                                        const responseContent = (e.response || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                        llmHtml += `<div style="margin-bottom:6px;"><span class="badge" style="background:#2ecc71;">response</span>`;
+                                        llmHtml += `<div style="white-space: pre-wrap; font-family: 'Consolas','Monaco', monospace; font-size: 12px; background:#e8f8f5; padding:8px; border-radius:4px; border-left:3px solid #2ecc71;">${responseContent}</div></div>`;
+                                    }
+
+                                    llmHtml += `</div>`;
+                                }
+                                llmHtml += `</div>`;
+                            });
+                            llmHtml += `</div>`;
+                        } else {
+                             llmHtml = '<p class="placeholder">No LLM IO found for this iteration.</p>';
+                        }
+                    } catch (e) {
+                        console.error('Failed to render LLM IO:', e);
+                        llmHtml = `<p class="placeholder">Error loading LLM IO: ${e.message}</p>`;
+                    }
+                } else {
+                    llmHtml = '<p class="placeholder">No iteration info found for this node.</p>';
+                }
+                llmContainer.innerHTML = llmHtml;
+
+
+                // 3. CODE TAB
+                const codeContainer = document.getElementById('code-content');
+                if (info.code) {
+                     codeContainer.innerHTML = `<div class="info-section"><h3>Code</h3><pre>${info.code}</pre></div>`;
+                } else {
+                     codeContainer.innerHTML = '<p class="placeholder">No code available for this node.</p>';
+                }
+
+                // 4. FULL DATA TAB
+                const fullContainer = document.getElementById('full-content');
+                fullContainer.innerHTML = `<div class="info-section"><h3>Full Data</h3><pre>${JSON.stringify(info, null, 2)}</pre></div>`;
+
+                // Switch to Details tab by default when clicking a node
+                // Or keep current tab? Let's keep current tab if active, otherwise default to Details.
+                // Actually, 'Details' seems like a good default for node clicks unless user is exploring code.
+                // Let's check if any tab is active.
+                const activeTab = document.querySelector('.tab-content.active');
+                if (!activeTab || activeTab.id === 'tab-problem') {
+                     // If problem tab is active, switch to details
+                     document.querySelector('.tab-button[onclick*="tab-details"]').click();
+                }
+            }
+
+            function renderChart(instanceData) {
+                // Extract all solutions
+                const allSolutions = [];
+                
+                // Helper to extract points
+                function extractPoints(data, isMain = true) {
+                    const points = [];
+                    Object.keys(data).forEach(key => {
+                        if (key === 'problem' || key === 'llm_io') return;
+                        const solution = data[key];
+                        
+                        let iter = solution.iteration;
+                        let perf = solution.performance;
+                        let label = solution.label || key;
+
+                        // Try to find iteration in evolution_steps if missing
+                        if (iter === undefined && solution.summary && solution.summary.evolution_steps) {
+                             const steps = solution.summary.evolution_steps;
+                             if (steps.length > 0) {
+                                 iter = steps[steps.length - 1].iteration;
+                             }
+                        }
+
+                        if (iter !== undefined) {
+                            const iterNum = parseInt(iter);
+                            
+                            // Filter by maxK if set
+                            if (maxK !== null && iterNum > maxK) {
+                                return; // Skip iterations beyond maxK
+                            }
+                            
+                            // Handle performance
+                            let val = Infinity;
+                            if (perf !== undefined && perf !== "Infinity") {
+                                 if (typeof perf === 'string') {
+                                     val = parseFloat(perf);
+                                 } else {
+                                     val = perf;
+                                 }
+                                 if (isNaN(val)) val = Infinity;
+                            }
+                            
+                            // Add to all solutions list if we have valid iteration
+                            if (val !== Infinity) {
+                                points.push({
+                                    x: iterNum,
+                                    y: val,
+                                    label: 'iter ' + iterNum,  // Use iteration number from data
+                                    solutionKey: key,
+                                    info: isMain ? solution : null // Only store info for main dataset to avoid confusion or clicking wrong things
+                                });
+                            }
+                        }
+                    });
+                    return points;
+                }
+
+                allSolutions.push(...extractPoints(instanceData));
+                
+                // Calculate max iteration across all datasets
+                let globalMaxIter = 0;
+                allSolutions.forEach(p => globalMaxIter = Math.max(globalMaxIter, p.x));
+                
+                let comparePoints = [];
+                if (compareData) {
+                    comparePoints = extractPoints(compareData, false);
+                    comparePoints.forEach(p => globalMaxIter = Math.max(globalMaxIter, p.x));
+                }
+                
+                // Apply maxK limit if set
+                if (maxK !== null) {
+                    globalMaxIter = Math.min(globalMaxIter, maxK);
+                }
+
+                // Calculate Best Performance Line (Pareto Frontier)
+                function calculateBestLine(points, maxIter) {
+                    const bestPerIter = {};
+                    points.forEach(sol => {
+                        if (!bestPerIter[sol.x] || sol.y < bestPerIter[sol.x].y) {
+                            bestPerIter[sol.x] = sol;
+                        }
+                    });
+
+                    const sortedIters = Object.keys(bestPerIter).map(i => parseInt(i)).sort((a, b) => a - b);
+                    const lineData = [];
+                    
+                    if (sortedIters.length > 0) {
+                        let currentBest = bestPerIter[sortedIters[0]].y;
+                        let currentBestLabel = bestPerIter[sortedIters[0]].label;
+                        
+                        lineData.push({
+                            x: sortedIters[0],
+                            y: currentBest,
+                            label: currentBestLabel,
+                            isTurningPoint: true,
+                            improvement: null
+                        });
+
+                        for (let i = 1; i < sortedIters.length; i++) {
+                            const iter = sortedIters[i];
+                            const iterBest = bestPerIter[iter];
+                            
+                            if (iterBest.y < currentBest) {
+                                const improvement = ((currentBest - iterBest.y) / currentBest) * 100;
+                                currentBest = iterBest.y;
+                                currentBestLabel = iterBest.label;
+                                
+                                lineData.push({
+                                    x: iter,
+                                    y: currentBest,
+                                    label: currentBestLabel,
+                                    isTurningPoint: true,
+                                    improvement: improvement
+                                });
+                            } else {
+                                lineData.push({
+                                    x: iter,
+                                    y: currentBest,
+                                    label: currentBestLabel,
+                                    isTurningPoint: false,
+                                    improvement: null
+                                });
+                            }
+                        }
+                        
+                        // Extend to maxIter if needed
+                        const lastPoint = lineData[lineData.length - 1];
+                        if (lastPoint.x < maxIter) {
+                            lineData.push({
+                                x: maxIter,
+                                y: currentBest,
+                                label: currentBestLabel,
+                                isTurningPoint: false,
+                                improvement: null
+                            });
+                        }
+                    }
+                    return lineData;
+                }
+
+                const bestLineData = calculateBestLine(allSolutions, globalMaxIter);
+                
+                // Calculate Comparison Line if data exists
+                let compareLineData = [];
+                if (compareData) {
+                    compareLineData = calculateBestLine(comparePoints, globalMaxIter);
+                }
+
+                if (chart) {
+                    chart.destroy();
+                }
+                
+                // Register plugin explicitly
+                if (typeof ChartDataLabels !== 'undefined') {
+                    Chart.register(ChartDataLabels);
+                }
+
+                const datasets = [
+                    {
+                        type: 'line',
+                        label: 'Best Performance (Current)',
+                        data: bestLineData,
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.05)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#e74c3c',
+                        pointBorderColor: '#fff',
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        tension: 0,
+                        fill: false,
+                        order: 2,
+                        datalabels: {
+                            align: function(context) { return context.dataIndex % 2 === 0 ? 'top' : 'bottom'; },
+                            anchor: function(context) { return context.dataIndex % 2 === 0 ? 'start' : 'end'; },
+                            offset: 20,
+                            backgroundColor: '#fdfea3', 
+                            color: '#333',
+                            borderColor: '#333',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            font: { weight: 'bold', size: 11 },
+                            padding: 6,
+                            formatter: function(value, context) {
+                                let label = value.label;
+                                if (value.improvement !== null && value.improvement !== undefined) {
+                                    label += `\n${value.y.toFixed(4)}`;
+                                    label += `\n(↓${value.improvement.toFixed(1)}%)`;
+                                } else {
+                                    label += `\n${value.y.toFixed(4)}`;
+                                }
+                                return label;
+                            },
+                            display: function(context) { return context.dataset.data[context.dataIndex].isTurningPoint; }
+                        }
+                    }
+                ];
+
+                if (compareLineData.length > 0) {
+                    datasets.push({
+                        type: 'line',
+                        label: 'Best Performance (Compare)',
+                        data: compareLineData,
+                        borderColor: '#3498db', // Blue for comparison
+                        backgroundColor: 'rgba(52, 152, 219, 0.05)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#3498db',
+                        pointBorderColor: '#fff',
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        tension: 0,
+                        fill: false,
+                        order: 1,
+                        datalabels: {
+                            // Simplify labels for comparison line or just hide to avoid clutter?
+                            // Let's show but maybe with different style or only value
+                            align: 'right',
+                            anchor: 'center',
+                            backgroundColor: '#e8f6f3',
+                            color: '#2c3e50',
+                            borderColor: '#2c3e50',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            font: { weight: 'bold', size: 10 },
+                            padding: 4,
+                            formatter: function(value) {
+                                return value.y.toFixed(4);
+                            },
+                            display: function(context) { return context.dataset.data[context.dataIndex].isTurningPoint; }
+                        }
+                    });
+                }
+
+                chart = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: datasets
+                    },
+                    plugins: [{
+                        id: 'connectorLines',
+                        afterDatasetsDraw: (chart, args, options) => {
+                            const ctx = chart.ctx;
+                            const dataset = chart.data.datasets[0]; // The Pareto line dataset (now index 0)
+                            const meta = chart.getDatasetMeta(0);
+                            
+                            ctx.save();
+                            ctx.beginPath();
+                            ctx.strokeStyle = '#555';
+                            ctx.lineWidth = 1;
+                            
+                            dataset.data.forEach((dataPoint, index) => {
+                                if (dataPoint.isTurningPoint) {
+                                    const element = meta.data[index];
+                                    if (!element) return;
+                                    
+                                    const { x, y } = element.tooltipPosition();
+                                    const isTop = index % 2 === 0;
+                                    const offset = 20;
+                                    
+                                    // Draw line from point to label
+                                    ctx.moveTo(x, y);
+                                    if (isTop) {
+                                        ctx.lineTo(x, y - offset);
+                                    } else {
+                                        ctx.lineTo(x, y + offset);
+                                    }
+                                    ctx.stroke();
+                                    
+                                    // Small dot at the end
+                                    ctx.beginPath();
+                                    if (isTop) {
+                                         ctx.arc(x, y - offset, 2, 0, 2 * Math.PI);
+                                    } else {
+                                         ctx.arc(x, y + offset, 2, 0, 2 * Math.PI);
+                                    }
+                                    ctx.fillStyle = '#555';
+                                    ctx.fill();
+                                }
+                            });
+                            ctx.restore();
+                        }
+                    }],
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        onClick: (e, elements) => {
+                            if (elements.length > 0) {
+                                const element = elements[0];
+                                const datasetIndex = element.datasetIndex;
+                                const index = element.index;
+                                const dataPoint = chart.data.datasets[datasetIndex].data[index];
+                                
+                                // Shift+Click to edit the data point label (iteration info)
+                                if (e.native.shiftKey && dataPoint.isTurningPoint) {
+                                    const newLabel = prompt('Edit label (iteration info):', dataPoint.label);
+                                    if (newLabel !== null && newLabel.trim() !== '') {
+                                        dataPoint.label = newLabel.trim();
+                                        chart.update();
+                                    }
+                                    return;
+                                }
+                                
+                                if (datasetIndex === 0) {
+                                    // It's a line point (Best Performance). Find the matching solution.
+                                    const match = allSolutions.find(s => s.x === dataPoint.x && s.y === dataPoint.y);
+                                    if (match && match.info) {
+                                        displayNodeDetails(match.info);
+                                        if (cy) {
+                                            cy.$(':selected').unselect();
+                                            cy.$id(match.solutionKey).select();
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const point = context.raw;
+                                        return `${point.label}: ${point.y.toFixed(4)} (Iter ${point.x})`;
+                                    }
+                                }
+                            },
+                            legend: {
+                                position: 'bottom',
+                                labels: { 
+                                    usePointStyle: true, 
+                                    padding: 20,
+                                    font: { size: 12 }
+                                },
+                                onClick: function(e, legendItem, legend) {
+                                    // Override default legend click to enable editing
+                                    const chartInstance = legend.chart;
+                                    const index = legendItem.datasetIndex;
+                                    const currentLabel = chartInstance.data.datasets[index].label;
+                                    const newLabel = prompt('Edit legend label:', currentLabel);
+                                    if (newLabel !== null && newLabel.trim() !== '') {
+                                        chartInstance.data.datasets[index].label = newLabel.trim();
+                                        chartInstance.update();
+                                    }
+                                },
+                                onHover: function(e) {
+                                    e.native.target.style.cursor = 'pointer';
+                                },
+                                onLeave: function(e) {
+                                    e.native.target.style.cursor = 'default';
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'linear',
+                                position: 'bottom',
+                                title: { display: true, text: 'Number of generations', font: { weight: 'bold' } }
+                            },
+                            y: {
+                                title: { display: true, text: 'Performance (integral, lower is better)', font: { weight: 'bold' } }
+                            }
+                        }
+                    }
+                });
+
+            }
+
+            // Setup Axis Controls (outside renderChart to avoid duplicate listeners)
+            document.getElementById('update-axis-btn').addEventListener('click', function() {
+                if (!chart) return;
+                
+                const minVal = parseFloat(document.getElementById('y-min').value);
+                const maxVal = parseFloat(document.getElementById('y-max').value);
+                
+                if (!isNaN(minVal)) {
+                    chart.options.scales.y.min = minVal;
+                } else {
+                    delete chart.options.scales.y.min;
+                }
+                
+                if (!isNaN(maxVal)) {
+                    chart.options.scales.y.max = maxVal;
+                } else {
+                    delete chart.options.scales.y.max;
+                }
+                
+                chart.update();
+            });
+
+            document.getElementById('reset-axis-btn').addEventListener('click', function() {
+                if (!chart) return;
+                
+                document.getElementById('y-min').value = '';
+                document.getElementById('y-max').value = '';
+                
+                delete chart.options.scales.y.min;
+                delete chart.options.scales.y.max;
+                
+                chart.update();
+            });
+
+            // Apply K generations filter
+            document.getElementById('apply-k-btn').addEventListener('click', function() {
+                const kInput = document.getElementById('k-iterations').value;
+                if (kInput && !isNaN(parseInt(kInput)) && parseInt(kInput) > 0) {
+                    maxK = parseInt(kInput);
+                } else {
+                    maxK = null; // Show all
+                }
+                
+                // Re-render chart with new filter
+                if (rawData && currentInstanceKey && rawData[currentInstanceKey]) {
+                    renderChart(rawData[currentInstanceKey]);
+                }
+            });
+
+            // Export PNG
+            document.getElementById('export-png-btn').addEventListener('click', function() {
+                if (!chart) return;
+                
+                const canvas = document.getElementById('performanceChart');
+                const link = document.createElement('a');
+                link.download = 'performance_chart.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+
+            // Export HD PNG (High DPI)
+            document.getElementById('export-svg-btn').addEventListener('click', function() {
+                if (!chart) return;
+                
+                // Since Chart.js uses canvas, we export as high-res PNG
+                const canvas = document.getElementById('performanceChart');
+                const scaleFactor = 2; // High DPI export
+                
+                // Create a temporary canvas with higher resolution
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = canvas.width * scaleFactor;
+                tempCanvas.height = canvas.height * scaleFactor;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.scale(scaleFactor, scaleFactor);
+                tempCtx.fillStyle = 'white';
+                tempCtx.fillRect(0, 0, canvas.width, canvas.height);
+                tempCtx.drawImage(canvas, 0, 0);
+                
+                const link = document.createElement('a');
+                link.download = 'performance_chart_hd.png';
+                link.href = tempCanvas.toDataURL('image/png');
+                link.click();
+            });
+
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+# PerfAgent 配置文件示例（严格使用嵌套结构）
+
+# 迭代控制
+max_iterations: 1
+early_stop_no_improve: 0
+max_workers: 10  # 批量并发的顶层控制（run_batch 并发度）
+
+# 模型配置
+model:
+  name: 
+  api_base: 
+  api_key: 
+  temperature: 0.7
+  max_input_tokens: 50000
+  max_output_tokens: 20000
+  use_llm: false
+  # LLM 请求控制与日志开关
+  request_timeout: 120
+  max_retries: 10
+  retry_delay: 2.0
+  retry_backoff_factor: 2.0
+  retry_jitter: 0.5
+  log_inputs_outputs: true
+  log_sanitize: true
+
+# 优化配置
+optimization:
+  target: "integral"         # 可选: runtime | memory ｜ integral
+  enable_memory_checks: true
+  enable_runtime_checks: true
+
+  adopt_only_if_improved: false
+  code_generation_mode: "direct"
+  include_other_metrics_in_summary: true
+
+# 运行时资源限制
+runtime:
+  time_limit: 10      # 每次评估的时间限制（秒）
+  memory_limit: 1024  # 内存限制（MB）
+  max_workers: 5      # 并发测试的最大工作线程数
+  num_runs: 5         # 性能测试运行次数
+  trim_ratio: 0.1     # 剪裁比例，用于稳健均值
+
+# 轨迹与日志
+logging:
+  save_trajectory: true
+  trajectory_dir: "./perfagent/trajectories"
+  log_dir: "./perfagent/logs"
+  log_level: "DEBUG"
+
+# 提示词（留空则会加载默认模板）
+prompts:
+  system_template: |
+    You are an expert competitive programmer specializing in algorithm optimization.
+
+    ## Principles
+    1. **Correctness First**: Ensure correctness before optimizing for {optimization_target}.
+    2. **Algorithmic Focus**: Prefer algorithmic improvements over micro-optimizations. Explore directions **different from existing approaches**.
+    3. **Learn from Failures**: Use Memory to prune failed directions, but don't restrict creative exploration.
+    4. **Strict Improvement**: Your solution must outperform the best prior solution in `Additional Requirements`.
+
+    ## Task
+    Synthesize a **complete program in {language}** that:
+    - Fixes fundamental bottlenecks in current solutions
+    - Explores novel optimization directions
+    - Minimizes the **integral** (area under memory-time curve) across all test cases — balancing both runtime and memory
+
+    ## Problem
+    {task_description}
+
+    ## Response Format
+    ### 1. Thinking
+    - **Baseline Analysis**: Identify strategy mode and best baseline from `Additional Requirements`.
+    - **Failure Pruning**: Review failed directions from Memory; avoid repeating them.
+    - **New Direction**: Select a fundamentally different, high-potential approach. Justify why it's better for {optimization_target}.
+    - **Risks**: Note correctness concerns and trade-offs.
+
+    ### 2. Final Code
+    Complete, self-contained {language} program. No test harness or debug prints.
+
+    ## Allowed Imports
+    {allowed_imports_scope}
+
+    ## Context
+    **Additional Requirements**: {additional_requirements}
+    **Local Memory**: {local_memory}
+    **Global Memory**: {global_memory}
+
+  optimization_template: |
+    Using all context (Additional Requirements, Local/Global Memory, current program), generate `## Thinking` and `## Diffs` to improve PERFORMANCE. Follow the guidance from Memory.
+
+
+  include_all_history: false
+
+# 语言配置
+language_cfg:
+  language: "python3"
+  supported_languages:
+    - "python3"
+    - "cpp"
+    - "java"
+    - "javascript"
+    - "golang"
