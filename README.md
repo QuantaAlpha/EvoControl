@@ -357,7 +357,7 @@ If you find EvoControl useful in your research, please cite our paper:
 ```bibtex
 @article{hu2026controlled,
   title={Controlled Self-Evolution for Algorithmic Code Optimization},
-  author={Hu, Tu and Chen, Ronghao and Zhang, Shuo and Yin, Jianghao and Feng, Mou Xiao and Liu, Jingping and Zhang, Shaolei and Jiang, Wenqi and Fang, Yuqi and Hu, Sen and Xu, Yi and Wang, Huacan},
+  author={Tu Hu and Ronghao Chen and Shuo Zhang and Jianghao Yin and Mou Xiao Feng and Jingping Liu and Shaolei Zhang and Wenqi Jiang and Yuqi Fang and Sen Hu and Yi Xu and Huacan Wang},
   journal={arXiv preprint arXiv:2601.07348},
   year={2026}
 }
