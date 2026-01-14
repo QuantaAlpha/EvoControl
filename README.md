@@ -7,7 +7,14 @@
 </p>
 
 <p align="center">
-  <em>Achieving superior code complexity through diversified initialization, controlled evolution, and hierarchical memory</em>
+  <a href="https://arxiv.org/abs/2601.07348"><img src="https://img.shields.io/badge/arXiv-2601.07348-b31b1b.svg" alt="arXiv"></a>
+  <a href="https://github.com/EffiBench/EffiBench-X"><img src="https://img.shields.io/badge/Benchmark-EffiBench--X-blue.svg" alt="Benchmark"></a>
+  <a href="#"><img src="https://img.shields.io/badge/License-Apache%202.0-green.svg" alt="License"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Python-3.10+-yellow.svg" alt="Python"></a>
+</p>
+
+<p align="center">
+  <em>Achieving superior code complexity through diversified planning initialization, genetic evolution, and hierarchical experience memory</em>
 </p>
 
 </div>
@@ -24,11 +31,11 @@
 
 ### 🔑 Three Key Innovations
 
-| Component                   | Problem Addressed                                      | Solution                                              |
-| --------------------------- | ------------------------------------------------------ | ----------------------------------------------------- |
-| 🎨 **Diversified Planning** | Initialization bias trapping evolution in poor regions | Generate structurally distinct algorithmic strategies |
-| 🧬 **Genetic Evolution**    | Uncontrolled stochastic operations lacking feedback    | Feedback-guided mutation & compositional crossover    |
-| 🧠 **Hierarchical Memory**  | Insufficient experience utilization across tasks       | Local + Global memory for experience reuse            |
+| Component                                  | Problem Addressed                                      | Solution                                              |
+| ------------------------------------------ | ------------------------------------------------------ | ----------------------------------------------------- |
+| 🎨 **Diversified Planning Initialization** | Initialization bias trapping evolution in poor regions | Generate structurally distinct algorithmic strategies |
+| 🧬 **Genetic Evolution**                   | Uncontrolled stochastic operations lacking feedback    | Feedback-guided mutation & compositional crossover    |
+| 🧠 **Hierarchical Experience Memory**      | Insufficient experience utilization across tasks       | Local + Global memory for experience reuse            |
 
 ---
 
@@ -343,10 +350,27 @@ python viz_tool/app.py --port 8080
 
 ---
 
+## 📖 Citation
+
+If you find EvoControl useful in your research, please cite our paper:
+
+```bibtex
+@article{hu2026controlled,
+  title={Controlled Self-Evolution for Algorithmic Code Optimization},
+  author={Hu, Tu and Chen, Ronghao and Zhang, Shuo and Yin, Jianghao and Feng, Mou Xiao and Liu, Jingping and Zhang, Shaolei and Jiang, Wenqi and Fang, Yuqi and Hu, Sen and Xu, Yi and Wang, Huacan},
+  journal={arXiv preprint arXiv:2601.07348},
+  year={2026}
+}
+```
+
+📄 **Paper**: [arXiv:2601.07348](https://arxiv.org/abs/2601.07348)
+
+---
+
 ## 🙏 Acknowledgments
 
 We thank the following projects:
 
-- **[EffiBench-X](https://github.com/effibench/effibench-x)** — Code efficiency evaluation benchmark
+- **[EffiBench-X](https://github.com/EffiBench/EffiBench-X)** — Code efficiency evaluation benchmark
 - **[SE-Agent](https://github.com/JARVIS-Xs/SE-Agent)** — Trajectory-level self-evolution
-- **[OpenEvolve](https://github.com/algorithmicsuperintelligence/openevolve)** - Open-source implementation of AlphaEvolve
+- **[OpenEvolve](https://github.com/algorithmicsuperintelligence/openevolve)** — Open-source implementation of AlphaEvolve

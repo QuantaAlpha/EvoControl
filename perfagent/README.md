@@ -1,113 +1,128 @@
-# PerfAgent - 代码性能优化工具
+# PerfAgent - Code Performance Optimization Agent
 
-PerfAgent 是基于 SE-Agent 框架构建的代码性能优化工具，模仿 sweagent 的设计模式，专门用于迭代式优化代码效率。
+PerfAgent is a code performance optimization tool built on top of the CSE framework, designed for iterative code efficiency optimization through LLM-driven refinement.
 
-## 功能特性
+## 🎯 Features
 
-- **迭代优化**: 通过多轮迭代不断改进代码性能
-- **性能评估**: 使用 EffiBench 基准测试评估代码性能
-- **轨迹记录**: 完整记录优化过程，便于分析和复现
-- **Diff 应用**: 自动解析和应用模型生成的代码修改
-- **配置灵活**: 支持 YAML 配置文件和命令行参数
-- **批量处理**: 支持单个实例和批量实例的优化
+- **Iterative Optimization**: Continuously improve code performance through multiple rounds
+- **Performance Evaluation**: Evaluate code efficiency using EffiBench-X benchmark
+- **Trajectory Recording**: Complete logging of optimization process for analysis and reproduction
+- **Diff Application**: Automatic parsing and application of model-generated code modifications
+- **Flexible Configuration**: Support for YAML configuration files and command-line arguments
+- **Batch Processing**: Support for both single instance and batch instance optimization
 
-## 安装和设置
+## 📁 Directory Structure
 
-1. 确保在 SE-Agent 环境中运行
-2. 安装依赖（如果需要）：
-   ```bash
-   pip install pyyaml
-   ```
-
-## 使用方法
-
-### 基本用法
-
-```bash
-# 运行单个实例（推荐）
-python -m perfagent.run --instance /path/to/instance.json --base-dir /path/to/output
-
-# 批量运行（推荐）
-python -m perfagent.run_batch --instances-dir /path/to/instances/ --base-dir /path/to/output
-
-# 使用配置文件（批量）
-python -m perfagent.run_batch --config config.yaml --instances-dir /path/to/instances/ --base-dir /path/to/output
+```text
+perfagent/
+├── agent.py            # Main optimization agent class
+├── config.py           # Configuration management system
+├── trajectory.py       # Trajectory logging system
+├── diff_applier.py     # Diff parsing and application tool
+├── llm_client.py       # LLM interaction interface
+├── run.py              # Single instance runner
+├── run_batch.py        # Batch instance runner
+├── effibench/          # EffiBench integration
+│   ├── benchmark.py    # Benchmark execution
+│   ├── backends/       # Execution backends
+│   └── utils.py        # Utility functions
+├── utils/              # Utility modules
+│   └── log.py          # Logging utilities
+└── tests/              # Test suite
 ```
 
-### 命令行参数
+## 🚀 Quick Start
 
-- `--config`: 配置文件路径
-- `--instance`: 单个实例文件路径
-- `--instances-dir`: 实例目录路径（批量运行）
-- `--output`: 结果输出文件路径
-- `--base-dir`: 实例输出基目录（统一日志、轨迹与结果）
-- `--max-iterations`: 最大迭代次数
-- `--model`: 模型名称
-- `--log-level`: 日志级别 (DEBUG/INFO/WARNING/ERROR)
-- `--trajectory-dir`: 轨迹保存目录
-- `--log-dir`: 日志保存目录
+### Basic Usage
 
-### 配置文件
+```bash
+# Run single instance (recommended)
+python -m perfagent.run \
+    --instance /path/to/instance.json \
+    --base-dir /path/to/output
 
-创建 YAML 配置文件来自定义 PerfAgent 的行为：
+# Batch run (recommended)
+python -m perfagent.run_batch \
+    --instances-dir /path/to/instances/ \
+    --base-dir /path/to/output
+
+# Use configuration file (batch)
+python -m perfagent.run_batch \
+    --config perfagent/config_example.yaml \
+    --instances-dir /path/to/instances/ \
+    --base-dir /path/to/output
+```
+
+### Command Line Arguments
+
+| Argument           | Description                          |
+| ------------------ | ------------------------------------ |
+| `--config`         | Configuration file path              |
+| `--instance`       | Single instance file path            |
+| `--instances-dir`  | Instance directory path (batch run)  |
+| `--output`         | Result output file path              |
+| `--base-dir`       | Instance output base directory       |
+| `--max-iterations` | Maximum number of iterations         |
+| `--model`          | Model name                           |
+| `--log-level`      | Log level (DEBUG/INFO/WARNING/ERROR) |
+| `--trajectory-dir` | Trajectory save directory            |
+| `--log-dir`        | Log save directory                   |
+
+## ⚙️ Configuration
+
+Create a YAML configuration file to customize PerfAgent behavior:
 
 ```yaml
-# 基础配置
+# Basic configuration
 max_iterations: 10
 time_limit: 300
 memory_limit: 1024
 
-# 模型配置
-model_name: "gpt-4"
+# Model configuration
+model_name: "deepseek-chat"
 temperature: 0.1
 max_tokens: 4000
 
-# 性能评估配置
+# Performance evaluation configuration
 num_runs: 5
 trim_ratio: 0.1
 max_workers: 4
 
-# 轨迹和日志配置
+# Trajectory and log configuration
 save_trajectory: true
 trajectory_dir: "./trajectories"
 log_dir: "./logs"
 log_level: "INFO"
 ```
 
-## 架构设计
+## 🏗️ Architecture
 
-### 核心组件
+### Core Components
 
-1. **PerfAgent**: 主要的优化代理类
-2. **PerfAgentConfig**: 配置管理系统
-3. **TrajectoryLogger**: 轨迹记录系统
-4. **DiffApplier**: Diff 解析和应用工具
-5. **ModelInterface**: 模型交互接口
+| Component          | Description                       |
+| ------------------ | --------------------------------- |
+| `PerfAgent`        | Main optimization agent class     |
+| `PerfAgentConfig`  | Configuration management system   |
+| `TrajectoryLogger` | Trajectory recording system       |
+| `DiffApplier`      | Diff parsing and application tool |
+| `LLMClient`        | Model interaction interface       |
 
-### 优化流程
+### Optimization Flow
 
-1. **初始化**: 加载配置和实例数据
-2. **性能评估**: 评估初始代码性能
-3. **迭代优化**:
-   - 生成优化建议
-   - 解析和应用 diff
-   - 评估优化后性能
-   - 记录优化历史
-4. **结果输出**: 保存最佳代码和轨迹
+1. **Initialization**: Load configuration and instance data
+2. **Performance Evaluation**: Evaluate initial code performance
+3. **Iterative Optimization**:
+   - Generate optimization suggestions
+   - Parse and apply diff
+   - Evaluate optimized performance
+   - Record optimization history
+4. **Result Output**: Save best code and trajectory
 
-### 可借鉴的 sweagent 设计
+## 📊 Output Files
 
-- **轨迹记录**: 完整记录每个步骤的输入输出
-- **配置系统**: 灵活的 YAML 配置支持
-- **模块化设计**: 清晰的组件分离和接口定义
-- **错误处理**: 健壮的异常处理和恢复机制
-- **日志系统**: 分级日志和文件输出
+### Trajectory File
 
-## 输出文件
-
-### 轨迹文件
-
-轨迹文件保存在 `<base_dir>/<task_name>/` 中，格式为 `<task_name>.traj`：
+Trajectory files are saved in `<base_dir>/<task_name>/` as `<task_name>.traj`:
 
 ```json
 {
@@ -131,93 +146,110 @@ log_level: "INFO"
 }
 ```
 
-### 日志文件
+### Log File
 
-日志文件保存在 `<base_dir>/<task_name>/perfagent.log` 中，包含详细的运行信息。
+Log files are saved in `<base_dir>/<task_name>/perfagent.log` with detailed runtime information.
 
-## 测试
+## 🛠️ Testing
 
-运行测试用例：
+Run test cases:
 
 ```bash
-python -m unittest perfagent.test_perfagent
+# Run all tests
+python -m pytest perfagent/tests/
+
+# Run specific test
+python -m pytest perfagent/tests/test_agent.py
 ```
 
-## 示例
+## 📋 Examples
 
-### 运行单个实例
+### Run Single Instance
 
 ```bash
 python -m perfagent.run \
-  --instance /mnt/d/workspace/SE-Agent/SE/instances/EffiBench-X/dataset/aizu_1444_yokohama-phenomena.json \
-  --base-dir /mnt/d/workspace/SE-Agent/output \
-  --max-iterations 5 \
-  --output /mnt/d/workspace/SE-Agent/output/aizu_1444_yokohama-phenomena/result.json
+    --instance instances/aizu_1444_yokohama-phenomena.json \
+    --base-dir output \
+    --max-iterations 5 \
+    --output output/aizu_1444_yokohama-phenomena/result.json
 ```
 
-### 批量运行 EffiBench-X
+### Batch Run EffiBench-X
 
 ```bash
 python -m perfagent.run_batch \
-  --instances-dir /mnt/d/workspace/SE-Agent/SE/instances/EffiBench-X/dataset \
-  --config perfagent/config_example.yaml \
-  --base-dir /mnt/d/workspace/SE-Agent/output \
-  --output /mnt/d/workspace/SE-Agent/output/summary.json
+    --instances-dir instances/ \
+    --config perfagent/config_example.yaml \
+    --base-dir output \
+    --output output/summary.json
 ```
 
-## 扩展和定制
+## 🔒 Security & Configuration Tips
 
-### 自定义模型接口
+- **API Keys**: Do not store plaintext API keys in the repository. Use environment variables or local `.env` files:
 
-继承 `ModelInterface` 类来集成不同的模型：
+  ```bash
+  export OPENROUTER_API_KEY=xxxxx
+  ```
+
+  Then reference in config: `api_key: ${OPENROUTER_API_KEY}`
+
+- **LLM Logging**: Enable request/response logging with sanitization:
+
+  - `--llm-log-io` and `--llm-log-sanitize` log LLM I/O to `logs/llm_io.log` with sensitive endpoints hidden
+
+- **Early Stopping**: Configure early stopping to avoid ineffective iterations:
+  - Use `--early-stop-no-improve N` or set `early_stop_no_improve: N` in YAML
+
+## 🔧 Extension & Customization
+
+### Custom Model Interface
+
+Inherit from the base class to integrate different models:
 
 ```python
-from perfagent.agent import ModelInterface
+from perfagent.llm_client import LLMClient
 
-class CustomModelInterface(ModelInterface):
+class CustomLLMClient(LLMClient):
     def query(self, prompt: str, max_tokens: int = 4000) -> str:
-        # 实现自定义模型调用
+        # Implement custom model call
         pass
 ```
 
-### 自定义性能评估
+### Custom Performance Evaluation
 
-修改 `_evaluate_performance` 方法来使用不同的评估标准。
+Modify `_evaluate_performance` method to use different evaluation criteria.
 
-### 自定义提示词
+### Custom Prompts
 
-在配置文件中设置 `system_template` 和 `optimization_template` 来自定义提示词。
+Set `system_template` and `optimization_template` in configuration file to customize prompts.
 
-## 注意事项
+## ⚠️ Important Notes
 
-1. 确保有足够的磁盘空间存储轨迹和日志文件
-2. 根据实际情况调整 `time_limit` 和 `memory_limit`
-3. 模型接口目前是简化实现，需要集成真实的 API
-4. 性能评估依赖于 EffiBench 的 benchmark.py 函数
+1. Ensure sufficient disk space for trajectory and log files
+2. Adjust `time_limit` and `memory_limit` based on actual requirements
+3. EffiBench-X backend service must be running for performance evaluation
+4. Check network connectivity for API calls
 
-## 安全与配置建议
+## 🆘 Troubleshooting
 
-- 不要在仓库中保存明文 API Key。使用环境变量或本地 `.env` 文件，并在配置中引用，例如：
-  - 将 `perfagent/config_example.yaml` 的 `model.api_key` 设置为 `${OPENROUTER_API_KEY}`，在运行前导出：
-    - `export OPENROUTER_API_KEY=xxxxx`
-- 启用请求与响应脱敏日志：
-  - `--llm-log-io` 与 `--llm-log-sanitize` 会将 LLM I/O 记录到 `logs/llm_io.log`，并隐藏敏感端点信息。
-- 推荐配置早停以避免无效迭代：
-  - 通过 `--early-stop-no-improve N` 或在 YAML 中设置 `early_stop_no_improve: N` 控制连续未改进次数后停止。
-- 日志重复与膨胀控制：
-  - 工具会避免添加重复文件处理器；如需自定义路径请使用 `--log-dir`。
+### Common Issues
 
-## 故障排除
+| Issue                         | Solution                                         |
+| ----------------------------- | ------------------------------------------------ |
+| Instance file not found       | Check file path and permissions                  |
+| Performance evaluation failed | Check EffiBench-X dependencies and configuration |
+| Model call failed             | Check API key and network connection             |
+| Trajectory save failed        | Check directory permissions and disk space       |
 
-### 常见问题
+### Debugging Tips
 
-1. **无法找到实例文件**: 检查文件路径和权限
-2. **性能评估失败**: 检查 benchmark.py 的依赖和配置
-3. **模型调用失败**: 检查模型接口的实现和 API 配置
-4. **轨迹保存失败**: 检查目录权限和磁盘空间
+- Use `--log-level DEBUG` for detailed logs
+- Check trajectory files for execution steps
+- Use `--max-iterations 1` for quick testing
 
-### 调试技巧
+## 🔗 Related Documentation
 
-- 使用 `--log-level DEBUG` 获取详细日志
-- 检查轨迹文件了解具体的执行步骤
-- 使用 `--max-iterations 1` 进行快速测试
+- [Main Project README](../README.md)
+- [SE_Perf Documentation](../SE_Perf/README.md)
+- [Configuration Examples](config_example.yaml)

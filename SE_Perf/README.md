@@ -1,189 +1,195 @@
-# SE Framework 
+# SE_Perf - Core Evolution Framework
+
+The core evolution framework module of CSE (Controlled Self-Evolution), implementing diversified planning initialization, controlled genetic evolution, and hierarchical memory systems.
+
+## 🎯 Module Overview
+
+SE_Perf is the core engine of EvoControl, responsible for:
+
+- **Evolution Strategy Orchestration**: Coordinating multi-round iterative evolution
+- **Operator System**: Implementing Plan, Mutation, Crossover, and other evolution operators
+- **Memory System**: Managing Local Memory and Global Memory
+- **Parallel Execution**: Supporting multi-instance parallel optimization
+
+## 📁 Directory Structure
+
+```text
+SE_Perf/
+├── instance_runner.py      # Main entry - multi-instance parallel executor
+├── perf_run.py             # Single instance evolution runner
+├── perf_config.py          # Configuration parser
+├── core/                   # Core functionality modules
+│   ├── swe_iterator.py     # Evolution iterator
+│   ├── global_memory/      # Global memory system
+│   │   ├── bank.py         # Memory bank management
+│   │   ├── embeddings/     # Vector embeddings
+│   │   └── memory/         # Memory storage
+│   └── utils/              # Utility functions
+├── operators/              # Evolution operator system
+│   ├── base.py             # Operator base class
+│   ├── registry.py         # Operator registration
+│   ├── plan.py             # Diversified planning operator
+│   ├── crossover.py        # Compositional crossover operator
+│   ├── reflection_refine.py # Reflection refinement operator
+│   ├── filter.py           # Filter operator
+│   └── alternative_strategy.py # Alternative strategy operator
+└── test/                   # Test suite
+```
 
 ## 🚀 Quick Start
 
-The SE framework is a diversity experimental system based on SWE-agent that generates different solutions through multiple iterations and operator strategies.
-
-### Immediate Use
+### Basic Usage
 
 ```bash
-# 1. Quick demo (recommended for first-time use)
-python SE/basic_run.py --mode demo
+# Run experiment (recommended entry point)
+python SE_Perf/instance_runner.py \
+    --config configs/Plan-Weighted-Local-Global-30.yaml \
+    --max-parallel 10 \
+    --mode execute
 
-# 2. Execute experiment (requires API key configuration)
-python SE/basic_run.py --mode execute
-
-# 3. Use custom configuration
-python SE/basic_run.py --config SE/configs/se_configs/test_deepseek_se.yaml --mode execute
+# Quick test (first 5 instances)
+python SE_Perf/instance_runner.py \
+    --config configs/Plan-Weighted-Local-Global-30.yaml \
+    --limit 5 \
+    --mode execute
 ```
 
-### Runtime Requirements
+### Single Instance Run
 
-- **Working Directory**: Must be executed in the project root directory
-- **API Configuration**: Valid API key must be set in configuration file
-- **Dependencies**: SWE-agent and related dependencies must be installed
-
-## 🎯 Core Features
-
-### Multi-iteration Execution
-- Execute multiple different solution attempts for each problem
-- Each iteration uses different configurations and strategies
-- Automatically generate timestamped directories to avoid conflicts
-
-### Operator System
-- **TemplateOperator**: Generate personalized system prompts
-- **FilterOperator**: Generate historical filtering configurations
-- Modular design, easy to extend new operators
-
-### Intelligent Trajectory Processing
-- Automatically compress trajectory files, saving 75%-87% storage space
-- Intelligently extract problem descriptions as `.problem` files
-- LLM-driven trajectory analysis and summarization
-
-## 📁 Project Structure
-
-```
-SE/
-├── basic_run.py              # Main entry - multi-iteration executor
-├── configs/                  # Configuration files directory
-│   ├── se_configs/           # SE main configurations
-│   └── base_configs/         # SWE-agent base configurations
-├── core/                     # Core functionality modules
-│   ├── swe_iterator.py       # SWE-agent iteration runner
-│   └── utils/               # Utility functions
-├── operators/               # Operator system
-│   ├── base.py              # Operator base class
-│   └── registry.py          # Operator registration management
-├── instances/               # Test instances
-└── trajectories/            # Execution result output
+```bash
+python SE_Perf/perf_run.py \
+    --config configs/Plan-Weighted-Local-Global-30.yaml \
+    --instance instances/aizu_1444_yokohama-phenomena.json \
+    --output-dir trajectories_perf/test_run
 ```
 
-## 🔧 Configuration Guide
+## ⚙️ Configuration System
 
-### SE Main Configuration Files (se_configs/*.yaml)
+### Two-Layer Configuration Architecture
+
+| Config Type         | File                                         | Purpose                                   |
+| ------------------- | -------------------------------------------- | ----------------------------------------- |
+| **Base Config**     | `configs/perf_configs/config_integral.yaml`  | Model parameters, runtime limits, prompts |
+| **Strategy Config** | `configs/Plan-Weighted-Local-Global-30.yaml` | Evolution strategy orchestration          |
+
+### Strategy Configuration Example
 
 ```yaml
 # Model configuration
 model:
-  name: "anthropic/claude-sonnet-4-20250514"
-  api_base: "your_api_base"
+  name: "deepseek-chat"
+  api_base: "https://api.deepseek.com/v1"
   api_key: "your-api-key"
 
-# Instance configuration
-instances:
-  json_file: "SE/instances/test.json"
-  key: "instances"
+# Operator model configuration
+operator_models:
+  name: "deepseek-chat"
+  api_base: "https://api.deepseek.com/v1"
+  api_key: "your-api-key"
 
-# Output configuration
-output_dir: "SE/trajectories/experiment_001"
+# Global memory configuration
+global_memory_bank:
+  enabled: true
+  embedding_model:
+    model: "text-embedding-3-small"
+    api_key: "your-embedding-key"
 
-# Strategy orchestration - define multiple iterations
+# Strategy orchestration
 strategy:
   iterations:
-    - base_config: "test_claude"      # 1st iteration
-      operator: null
-    - base_config: "baseconfig1"      # 2nd iteration
-      operator: null
-    - base_config: "test_claude"      # 3rd iteration
-      operator: "Crossover"
+    - operator: "plan"
+      num: 5
+      trajectory_labels: ["iter1_sol1", "iter1_sol2", ...]
+    - operator: "reflection_refine"
+      trajectory_label: "iter1_sol6"
+    - operator: "crossover"
+      trajectory_label: "iter1_sol7"
 ```
 
-## 📊 Output Structure
+## 🧬 Operator System
 
-Each run generates a unique output directory:
+### Core Operators
 
-```
-SE/trajectories/test_20250714_123456/
-├── iteration_1/                    # First iteration
-│   ├── instance_name/
-│   │   ├── instance.traj           # Original trajectory
-│   │   ├── instance.tra            # Compressed trajectory (saves 80%+)
-│   │   ├── instance.problem        # Problem description
-│   │   └── instance.pred           # Prediction results
-│   └── preds.json                  # Batch results summary
-├── iteration_2/                    # Second iteration
-└── se_framework.log                # Framework logs
-```
+| Operator               | Function                                          | Paper Component         |
+| ---------------------- | ------------------------------------------------- | ----------------------- |
+| `plan`                 | Generate diverse algorithmic strategies           | Diversified Planning    |
+| `reflection_refine`    | Feedback-guided controlled mutation               | Controlled Mutation     |
+| `crossover`            | Compositional crossover, merge solution strengths | Compositional Crossover |
+| `filter`               | History-based solution filtering                  | Local Memory            |
+| `alternative_strategy` | Explore alternative strategies                    | Strategy Exploration    |
 
-## 🛠️ Development Guide
-
-### Testing System
-
-```bash
-# Run test suite
-python SE/test/run_operator_tests.py
-
-# Test specific operator
-python SE/test/test_alternative_strategy.py
-
-# Operator development testing
-python SE/operator_dev.py
-```
-
-### Creating New Operators
+### Custom Operators
 
 ```python
-from SE.operators import TemplateOperator, register_operator
+from SE_Perf.operators import TemplateOperator, register_operator
 
 class MyOperator(TemplateOperator):
     def get_name(self):
         return "my_operator"
-    
-    def get_strategy_prefix(self):
-        return "MY CUSTOM STRATEGY"
-    
+
     def _generate_content(self, instance_info, problem_description, trajectory_data):
-        # Implement generation logic
+        # Implement custom generation logic
         return "Generated strategy content"
 
 # Register operator
 register_operator("my_operator", MyOperator)
 ```
 
-## 📋 Usage Instructions
+> 📖 For detailed operator development guide, see [operators/README.md](operators/README.md)
 
-### First-time Use
+## 🧠 Memory System
 
-1. **Run demo mode**: `python SE/basic_run.py --mode demo`
-2. **Read output structure**: Understand the generated files and directories
-3. **Configure API key**: Set valid API key in configuration file
-4. **Execute experiment**: `python SE/basic_run.py --mode execute`
+### Local Memory (Intra-task)
 
-### Custom Experiments
+- Records success/failure experiences for current task
+- Avoids repeated exploration of failed directions
+- Guides optimization direction for subsequent iterations
 
-1. **Create configuration file**: Copy and modify examples from `SE/configs/se_configs/`
-2. **Configure instances**: Prepare test instances in `SE/instances/`
-3. **Run experiment**: Use `--config` parameter to specify configuration file
+### Global Memory (Inter-task)
 
-## 🔗 Related Documentation
+- Extracts reusable optimization patterns from successful cases
+- Retrieves relevant experiences based on semantic similarity
+- Accelerates optimization process for new tasks
 
-- Detailed development guide: `SE/test/README.md`
-- Learning path: `SE/LEARNING_GUIDE.md`
-- Development guide: `SE/DEVELOPMENT_GUIDE.md`
-- Project architecture: `CLAUDE.md` in root directory
+## 📊 Output Structure
+
+```text
+trajectories_perf/experiment_{timestamp}/
+├── {instance_name}/
+│   ├── iteration_{n}/
+│   │   ├── result.json         # Evaluation results
+│   │   └── *.traj              # Trajectory files
+│   ├── final.json              # Best solution
+│   ├── traj.pool               # Solution pool
+│   ├── token_usage.jsonl       # Token usage log
+│   └── se_framework.log        # Execution log
+├── all_hist.json               # Aggregated history
+├── final.json                  # All best solutions
+└── total_token_usage.json      # Token statistics
+```
+
+## 🛠️ Development & Testing
+
+```bash
+# Run test suite
+python SE_Perf/test/run_operator_tests.py
+
+# Test specific operators
+python SE_Perf/test/test_operators.py
+
+# Test global memory
+python SE_Perf/test/test_global_memory.py
+```
 
 ## ⚠️ Important Notes
 
-- All SE-related commands must be executed in the project root directory
-- Paths in configuration files are relative to the project root directory
-- Valid API key configuration is required to execute experiments
-- Demo mode does not consume API quota, suitable for testing
+1. **Working Directory**: Commands must be executed from the project root
+2. **API Configuration**: Valid API keys must be configured before running
+3. **EffiBench-X Backend**: EffiBench-X evaluation service must be running
+4. **Resource Limits**: Adjust `--max-parallel` based on machine capacity
 
-## 🆘 Troubleshooting
+## 🔗 Related Documentation
 
-### Common Issues
-
-1. **Module import errors**: Ensure running from project root directory
-2. **API call failures**: Check API key and network connection
-3. **Configuration file errors**: Verify YAML syntax and path correctness
-4. **Permission issues**: Ensure write permissions for output directory
-
-### Getting Help
-
-- View log files: `SE/trajectories/*/se_framework.log`
-- Run tests: `python SE/test/run_operator_tests.py`
-- Consult detailed documentation: `SE/test/README.md`
-
----
-
-*Start your diversity experimentation journey! 🚀*
+- [Main Project README](../README.md)
+- [Operator Development Guide](operators/README.md)
+- [PerfAgent Documentation](../perfagent/README.md)
