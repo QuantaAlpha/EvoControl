@@ -181,9 +181,12 @@ model:
 global_memory_bank:
   enabled: true
   embedding_model:
-    model: "text-embedding-3-small"
+    api_base: "your-embedding-api-base"
+    model: "embedding-model-name" # Embedding Model Name
     api_key: "your-embedding-key" # 🔑 Required!
 ```
+
+- You can see https://platform.openai.com/docs/api-reference/embeddings for more details about embedding models.
 
 ---
 
